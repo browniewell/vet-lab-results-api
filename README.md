@@ -35,6 +35,7 @@ TODO: what is tested, which edge cases, and how CI runs the tests.
 
 ## How I used AI
 TODO: keep a running list as you go. What you asked, what it got right, what you had to fix or rewrite.
+- Help with initial environment setup and scaffolding
 
 ## What I'd do next
 TODO: what you'd add with more time.
