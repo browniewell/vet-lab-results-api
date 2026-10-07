@@ -79,9 +79,11 @@ Returns patient with given ID
 
 ```json
 {
-  "id": "UUID",
-  "name": "Pongo",
-  "species": "Dog"
+  "patient": {
+    "id": "UUID",
+    "name": "Pongo",
+    "species": "Dog"
+  }
 }
 ```
 
@@ -106,9 +108,11 @@ Creates a new patient
 
 ```json
 {
-  "id": "UUID",
-  "name": "Pongo",
-  "species": "Dog"
+  "patient": {
+    "id": "UUID",
+    "name": "Pongo",
+    "species": "Dog"
+  }
 }
 ```
 

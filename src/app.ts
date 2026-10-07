@@ -16,10 +16,18 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Retrieve a patient with a given ID
+app.get("/patients/:id", (req, res) => {
+  const patientId = req.params.id;
+  const patient = patientMap.get(patientId);
+  if (!patient) {
+    return res.status(404).json({ message: "Patient not found" });
+  }
+  res.json({ patient });
+});
+
 // Create a new patient and add it to the patient map
 app.post("/patients", (req, res) => {
-  // TODO: Validate the patient data before storing it
-
   const patientId = randomUUID();
   const patient: Patient = {
     id: patientId,
@@ -30,7 +38,7 @@ app.post("/patients", (req, res) => {
   patientMap.set(patientId, patient);
 
   res.status(201).json({
-    patient: patient,
+    patient,
   });
 });
 
