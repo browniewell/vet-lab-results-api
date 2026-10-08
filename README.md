@@ -159,9 +159,11 @@ Creates a new lab result
 
 TODO: a few bullets on choices you made and why (and one tradeoff you'd explain in an interview).
 
-- Reject any request with an recognized field. This is so the sender knows they've done something wrong, and the failure doesn't happen silently. Need to use zod strict mode.
+- Reject any request with an unrecognized field. This is so the sender knows they've done something wrong, and the failure doesn't happen silently. Need to use zod strict mode.
 - GET on an empty list returns an empty list. It's not an invalid request, there's just nothing to return.
 - If no reference values are provided, set outOfRange to unknown, to avoid a false negative, which could incorrectly indicate a normal test result
+- Validate request bodies with zod's `safeParse` only, not the faster `validate`. A failed request needs the detailed errors for the `400` response, which `validate` doesn't provide, and the speed difference is negligible next to network I/O. One validation path is also easier to keep correct: `validate` returns a boolean rather than parsed data, so any transforms or defaults added to a schema later would be skipped on that path.
+- Lab results are stored by their own server-generated ID and linked to patients only through `patientId`. The patient doesn't keep a list of its results, so the relationship lives in one place and can't get out of sync. This mirrors a foreign key in a relational database, which keeps the later move from in-memory storage to SQLite straightforward.
 
 ## Testing
 

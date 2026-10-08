@@ -17,22 +17,15 @@ describe("Patient endpoints", () => {
     });
   });
 
-  // TODO: Story 5 will start to reject requests with extra fields
-  it("Should ignore extra fields in the request body", async () => {
+  it("Should return 400 with extra fields in the request body", async () => {
     const patientData = {
       name: "Pongo",
       species: "Dog",
       extraField: "ignored",
     };
     const response = await request(app).post("/patients").send(patientData);
-    expect(response.status).toBe(201);
-    expect(response.body).toEqual({
-      patient: {
-        id: expect.any(String),
-        name: patientData.name,
-        species: patientData.species,
-      },
-    });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
   });
 
   it("Should return a patient with a given ID", async () => {
@@ -66,5 +59,90 @@ describe("Patient endpoints", () => {
     const patientId2 = response2.body.patient.id;
 
     expect(patientId1).not.toBe(patientId2);
+  });
+
+  it("Should return 400 with missing required fields", async () => {
+    const patientData = { name: "Pongo" }; // Missing species
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["species"],
+        }),
+      ]),
+    );
+  });
+
+  it("Should return 400 with invalid name", async () => {
+    const patientData = { name: 123, species: "Dog" }; // Invalid name type
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["name"],
+        }),
+      ]),
+    );
+  });
+
+  it("Should return 400 with invalid species", async () => {
+    const patientData = { name: "Pongo", species: 123 }; // Invalid species type
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["species"],
+        }),
+      ]),
+    );
+  });
+
+  it("Should return 400 if id is inlcuded in POST", async () => {
+    const patientData = { id: randomUUID(), name: "Pongo", species: "Dog" }; // ID should not be included in POST
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "unrecognized_keys",
+          keys: ["id"],
+        }),
+      ]),
+    );
+  });
+
+  it("Should return 400 if name is empty", async () => {
+    const patientData = { name: "", species: "Dog" }; // Empty name
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["name"],
+        }),
+      ]),
+    );
+  });
+
+  it("Should return 400 if species is empty", async () => {
+    const patientData = { name: "Pongo", species: "" }; // Empty species
+    const response = await request(app).post("/patients").send(patientData);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid patient");
+    expect(response.body.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: ["species"],
+        }),
+      ]),
+    );
   });
 });
