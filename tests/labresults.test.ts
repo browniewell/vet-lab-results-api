@@ -3,7 +3,7 @@ import request from "supertest";
 import app from "../src/app.js";
 import { randomUUID } from "node:crypto";
 import { calculateFlag, flagEnum } from "../src/flag.js";
-import type { LabResultCreate } from "../src/app.js";
+import type { LabResultCreate } from "../src/schemas.js";
 
 function createTestPatient() {
   return request(app).post("/patients").send({
