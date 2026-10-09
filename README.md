@@ -34,25 +34,27 @@ npm test
 
 ### LabResult
 
-| Field         | Type   | Required?       | Notes                |
-| ------------- | ------ | --------------- | -------------------- |
-| patientId     | string | Yes             | UUID                 |
-| testCode      | string | Yes             | Alphanumeric         |
-| value         | number | Yes             |                      |
-| unit          | string | Yes             |                      |
-| referenceLow  | number | No              |                      |
-| referenceHigh | number | No              |                      |
-| collectedAt   | string | Yes             | YYYY-MM-DDTHH:mm:ssZ |
-| flag          | string | _set by server_ |                      |
+| Field         | Type   | Required?       | Notes                                     |
+| ------------- | ------ | --------------- | ----------------------------------------- |
+| id            | string | _set by server_ | UUID                                      |
+| patientId     | string | Yes             | UUID                                      |
+| testCode      | string | Yes             | Alphanumeric                              |
+| value         | number | Yes             |                                           |
+| unit          | string | Yes             |                                           |
+| referenceLow  | number | No              |                                           |
+| referenceHigh | number | No              |                                           |
+| collectedAt   | string | Yes             | ISO 8601, UTC (`Z`); offsets are rejected |
+| flag          | string | _set by server_ | `LOW`, `NORMAL`, `HIGH` or `UNKNOWN`      |
 
 ## API endpoints
 
-| Method | Path          | Description       |
-| ------ | ------------- | ----------------- |
-| GET    | /health       | Liveness check    |
-| GET    | /patients/:id | Lookup patient    |
-| POST   | /patients     | Create patient    |
-| POST   | /lab-results  | Create lab result |
+| Method | Path                  | Description                  |
+| ------ | --------------------- | ---------------------------- |
+| GET    | /health               | Liveness check               |
+| GET    | /patients/:id         | Lookup patient               |
+| POST   | /patients             | Create patient               |
+| POST   | /lab-results          | Create lab result            |
+| GET    | /patients/:id/results | List a patient's lab results |
 
 ### GET /health
 
@@ -142,18 +144,58 @@ Creates a new lab result
 
 ```json
 {
-  "patientId": "UUID",
-  "testCode": "ABC",
-  "value": 98,
-  "unit": "degrees",
-  "referenceLow": 95,
-  "referenceHigh": 100,
-  "collectedAt": "YYYY-MM-DDTHH:mm:ssZ",
-  "flag": "LOW | NORMAL | HIGH | UNKNOWN"
+  "labResult": {
+    "id": "UUID",
+    "patientId": "UUID",
+    "testCode": "ABC",
+    "value": 98,
+    "unit": "degrees",
+    "referenceLow": 95,
+    "referenceHigh": 100,
+    "collectedAt": "YYYY-MM-DDTHH:mm:ssZ",
+    "flag": "NORMAL"
+  }
 }
 ```
 
-- `400 Bad Request`: missing field, wrong type, unknown field
+- `400 Bad Request`: missing field, wrong type, unknown field (including `id` or `flag`), `collectedAt` not ISO 8601 UTC, or `referenceLow` greater than `referenceHigh`. The response lists each problem with the field it applies to.
+- `404 Not Found`: no patient with that `patientId`
+
+### GET /patients/:id/results
+
+Returns a patient's lab results, newest `collectedAt` first.
+
+**Query parameters**
+
+- `abnormal` (optional): `true` returns only `LOW`, `HIGH` and `UNKNOWN` results; `false` or omitted returns all results.
+
+**Request body:** none
+
+**Responses**
+
+- `200 OK`:
+
+```json
+{
+  "labResults": [
+    {
+      "id": "UUID",
+      "patientId": "UUID",
+      "testCode": "ABC",
+      "value": 101,
+      "unit": "degrees",
+      "referenceLow": 95,
+      "referenceHigh": 100,
+      "collectedAt": "2026-10-09T08:00:00Z",
+      "flag": "HIGH"
+    }
+  ]
+}
+```
+
+- `200 OK` with `"labResults": []`: the patient exists but has no results (or none match the filter)
+- `400 Bad Request`: `abnormal` is anything other than `true` or `false`
+- `404 Not Found`: no patient with that ID
 
 ## Design decisions
 
@@ -161,8 +203,11 @@ TODO: a few bullets on choices you made and why (and one tradeoff you'd explain 
 
 - Reject any request with an unrecognized field. This is so the sender knows they've done something wrong, and the failure doesn't happen silently. Need to use zod strict mode.
 - GET on an empty list returns an empty list. It's not an invalid request, there's just nothing to return.
-- If no reference values are provided, set outOfRange to unknown, to avoid a false negative, which could incorrectly indicate a normal test result
+- If no reference values are provided, set `flag` to `UNKNOWN`, to avoid a false negative, which could incorrectly indicate a normal test result
+- Reference range limits are inclusive: a value exactly at `referenceLow` or `referenceHigh` is `NORMAL`, matching how labs report ranges. If only one limit is provided, the value is checked against that limit alone.
 - Validate request bodies with zod's `safeParse` only, not the faster `validate`. A failed request needs the detailed errors for the `400` response, which `validate` doesn't provide, and the speed difference is negligible next to network I/O. One validation path is also easier to keep correct: `validate` returns a boolean rather than parsed data, so any transforms or defaults added to a schema later would be skipped on that path.
+- `?abnormal=true` includes `UNKNOWN` results as well as `LOW` and `HIGH`. A result with no reference range hasn't been checked, so it needs a person to look at it; hiding it would repeat the false-negative risk of defaulting to `NORMAL`.
+- Query parameters are validated as strictly as request bodies: `?abnormal=` accepts only `true` or `false`, and anything else is a `400`. A typo like `?abnormal=ture` should tell the caller, not silently return every result.
 - Lab results are stored by their own server-generated ID and linked to patients only through `patientId`. The patient doesn't keep a list of its results, so the relationship lives in one place and can't get out of sync. This mirrors a foreign key in a relational database, which keeps the later move from in-memory storage to SQLite straightforward.
 
 ## Testing

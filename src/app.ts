@@ -1,6 +1,7 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { calculateFlag, flagEnum, isAbnormal } from "./flag.js";
 
 // Zod schema for patient validation
 const patientCreateSchema = z
@@ -15,7 +16,6 @@ const patientSchema = patientCreateSchema.extend({
 type Patient = z.infer<typeof patientSchema>;
 
 // Zod schema for lab result validation
-const flagEnum = z.enum(["NORMAL", "HIGH", "LOW", "UNKNOWN"]);
 const labResultCreateSchema = z
   .object({
     patientId: z.uuid(),
@@ -44,6 +44,7 @@ const labResultSchema = labResultCreateSchema.extend({
   flag: flagEnum,
 });
 type LabResult = z.infer<typeof labResultSchema>;
+type LabResultCreate = z.infer<typeof labResultCreateSchema>;
 
 // In-memory storage for patients and lab results
 const patientMap = new Map<string, Patient>(); // Patient ID -> Patient
@@ -66,6 +67,41 @@ app.get("/patients/:id", (req, res) => {
     return res.status(404).json({ message: "Patient not found" });
   }
   res.json({ patient });
+});
+
+// GET endpoint for retrieving all lab results for a patient
+app.get("/patients/:id/results", (req, res) => {
+  const patientId = req.params.id;
+  const abnormalFlag = req.query.abnormal;
+  if (
+    abnormalFlag !== "true" &&
+    abnormalFlag !== "false" &&
+    abnormalFlag !== undefined
+  ) {
+    return res.status(400).json({ message: "Invalid query parameter" });
+  }
+  const patient = patientMap.get(patientId);
+  if (!patient) {
+    return res.status(404).json({ message: "Patient not found" });
+  }
+
+  // Get all test results for the patient
+  let filteredResults = Array.from(labResultMap.values())
+    .filter((result) => result.patientId === patientId)
+    .sort((a, b) => {
+      return (
+        new Date(b.collectedAt).getTime() - new Date(a.collectedAt).getTime()
+      );
+    });
+
+  if (abnormalFlag === "true") {
+    filteredResults = filteredResults.filter((result) =>
+      isAbnormal(result.flag),
+    );
+    return res.status(200).json({ labResults: filteredResults });
+  } else if (abnormalFlag === "false" || abnormalFlag === undefined) {
+    return res.status(200).json({ labResults: filteredResults });
+  }
 });
 
 // POST endpoint for creating a new patient
@@ -103,7 +139,11 @@ app.post("/lab-results", (req, res) => {
   const labResult: LabResult = {
     ...createdLabResult,
     id: randomUUID(),
-    flag: "UNKNOWN", // Placeholder value for now. We calcluate in the next story.
+    flag: calculateFlag(
+      createdLabResult.value,
+      createdLabResult.referenceLow,
+      createdLabResult.referenceHigh,
+    ),
   };
 
   // Find the patient which belongs to the lab result
@@ -117,3 +157,4 @@ app.post("/lab-results", (req, res) => {
 });
 
 export default app;
+export type { LabResultCreate };
