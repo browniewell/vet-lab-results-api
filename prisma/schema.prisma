@@ -11,3 +11,23 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+model Patient { 
+  id  String @id
+  name  String
+  species String
+  labResults LabResult[]
+}
+
+model LabResult {
+  id  String  @id
+  patient Patient @relation(fields: [patientId], references: [id])
+  patientId String 
+  testCode  String
+  value Float
+  unit  String
+  referenceLow  Float?
+  referenceHigh Float?
+  collectedAt DateTime
+  flag  String
+}

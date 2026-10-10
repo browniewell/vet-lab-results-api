@@ -1,31 +1,42 @@
 import type { Patient, LabResult } from "./schemas.js";
-
-// In-memory storage for patients and lab results
-const patientMap = new Map<string, Patient>(); // Patient ID -> Patient
-const labResultMap = new Map<string, LabResult>(); // Lab Result ID -> Lab Result
+import { prisma } from "./db.js";
 
 async function retrievePatient(
   patientId: string,
 ): Promise<Patient | undefined> {
-  return patientMap.get(patientId);
+  return (
+    (await prisma.patient.findUnique({ where: { id: patientId } })) ?? undefined
+  );
 }
 
 async function retrieveLabResults(patientId: string): Promise<LabResult[]> {
-  return Array.from(labResultMap.values())
-    .filter((result) => result.patientId === patientId)
-    .sort((a, b) => {
-      return (
-        new Date(b.collectedAt).getTime() - new Date(a.collectedAt).getTime()
-      );
-    });
+  return (
+    await prisma.labResult.findMany({
+      where: { patientId: patientId },
+      orderBy: { collectedAt: "desc" },
+    })
+  ).map((result): LabResult => ({
+    ...result,
+    referenceLow: result.referenceLow ?? undefined,
+    referenceHigh: result.referenceHigh ?? undefined,
+    collectedAt: result.collectedAt.toISOString(),
+    flag: result.flag as LabResult["flag"],
+  }));
 }
 
 async function storePatient(patient: Patient) {
-  patientMap.set(patient.id, patient);
+  await prisma.patient.create({
+    data: patient,
+  });
 }
 
 async function storeLabResult(labResult: LabResult) {
-  labResultMap.set(labResult.id, labResult);
+  await prisma.labResult.create({
+    data: {
+      ...labResult,
+      collectedAt: new Date(labResult.collectedAt),
+    },
+  });
 }
 
 export { retrievePatient, retrieveLabResults, storePatient, storeLabResult };

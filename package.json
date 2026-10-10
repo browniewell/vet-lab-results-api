@@ -12,7 +12,7 @@
     "format:check": "prettier --check .",
     "coverage": "vitest run --coverage",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate dev && prisma generate",
     "db:generate": "prisma generate"
   },
   "dependencies": {

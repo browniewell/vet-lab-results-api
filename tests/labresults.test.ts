@@ -495,6 +495,28 @@ describe("Lab result endpoints", () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ message: "Invalid query parameter" });
   });
+
+  it("Should handle decimals correctly", async () => {
+    const patientId = await createTestPatientId();
+    const labResult = buildTestLabResult(patientId, {
+      referenceHigh: 10.1,
+      referenceLow: 0.1,
+      value: 0.6,
+    });
+
+    const response = await request(app).post("/lab-results").send(labResult);
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      labResult: {
+        ...labResult,
+        referenceLow: 0.1,
+        referenceHigh: 10.1,
+        value: 0.6,
+        id: expect.any(String),
+        flag: flagEnum.enum.NORMAL,
+      },
+    });
+  });
 });
 
 describe("calculateFlag function", () => {
