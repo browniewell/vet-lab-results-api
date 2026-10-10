@@ -10,21 +10,34 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^18.0.7",
     "express": "^5.2.0",
     "zod": "^4.6.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.0",
     "@types/node": "^26.0.0",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^5.0.3",
     "prettier": "^3.9.9",
+    "prisma": "^7.10.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.0",
     "typescript": "^7.0.0",
     "vitest": "^5.0.3"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "better-sqlite3@12.11.1": true
   }
 }
