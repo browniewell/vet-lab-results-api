@@ -1,0 +1,165 @@
+# Vet Lab Results API: demo walkthrough
+#
+# 1. Start the API:  npm run dev
+# 2. Click "Send Request" above each request, top to bottom.
+#
+# Requests later in the file reuse the patient IDs from steps 1 and 1b automatically.
+# All data here is made up.
+
+@baseUrl = http://localhost:3000
+
+### 0. Health check: is the API up?
+GET {{baseUrl}}/health
+
+### 1. Register a patient (Biscuit, a dog)
+# @name createPatient
+POST {{baseUrl}}/patients
+Content-Type: application/json
+
+{
+  "name": "Biscuit",
+  "species": "Dog"
+}
+
+### 1b. Register a second patient (Mochi, a cat)
+# @name createPatient2
+POST {{baseUrl}}/patients
+Content-Type: application/json
+
+{
+  "name": "Mochi",
+  "species": "Cat"
+}
+
+###
+@patientId = {{createPatient.response.body.$.patient.id}}
+@patientId2 = {{createPatient2.response.body.$.patient.id}}
+
+### 2. Biscuit: glucose within range → NORMAL
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "GLU",
+  "value": 98,
+  "unit": "mg/dL",
+  "referenceLow": 74,
+  "referenceHigh": 143,
+  "collectedAt": "2026-10-01T09:15:00.000Z"
+}
+
+### 3. Biscuit: liver enzyme above range → HIGH
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "ALT",
+  "value": 212,
+  "unit": "U/L",
+  "referenceLow": 10,
+  "referenceHigh": 125,
+  "collectedAt": "2026-10-03T14:30:00.000Z"
+}
+
+### 4. Biscuit: potassium below range, a decimal value → LOW
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "K",
+  "value": 3.1,
+  "unit": "mmol/L",
+  "referenceLow": 3.5,
+  "referenceHigh": 5.8,
+  "collectedAt": "2026-10-05T08:45:00.000Z"
+}
+
+### 5. Biscuit: no reference range from the lab → UNKNOWN (never assumed NORMAL)
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "SDMA",
+  "value": 16,
+  "unit": "ug/dL",
+  "collectedAt": "2026-10-07T11:00:00.000Z"
+}
+
+### 5b. Mochi: kidney value above the feline range → HIGH
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId2}}",
+  "testCode": "CREA",
+  "value": 2.9,
+  "unit": "mg/dL",
+  "referenceLow": 0.8,
+  "referenceHigh": 2.4,
+  "collectedAt": "2026-10-06T10:20:00.000Z"
+}
+
+### 5c. Mochi: glucose within the feline range → NORMAL
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId2}}",
+  "testCode": "GLU",
+  "value": 112,
+  "unit": "mg/dL",
+  "referenceLow": 71,
+  "referenceHigh": 159,
+  "collectedAt": "2026-10-08T16:05:00.000Z"
+}
+
+### 6. Biscuit's full history, newest first (none of Mochi's results)
+GET {{baseUrl}}/patients/{{patientId}}/results
+
+### 6b. Mochi's history: only her two results
+GET {{baseUrl}}/patients/{{patientId2}}/results
+
+### 7. Biscuit: only results that need attention (LOW, HIGH, UNKNOWN)
+GET {{baseUrl}}/patients/{{patientId}}/results?abnormal=true
+
+### 7b. Mochi: only results that need attention
+GET {{baseUrl}}/patients/{{patientId2}}/results?abnormal=true
+
+### 8a. Bad input → 400 listing each problem (wrong type, plus a server-set field the client may not send)
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "GLU",
+  "value": "high",
+  "unit": "mg/dL",
+  "referenceLow": 74,
+  "referenceHigh": 143,
+  "collectedAt": "2026-10-08T09:00:00.000Z",
+  "flag": "NORMAL"
+}
+
+### 8b. Reversed reference range → 400 pointing at referenceLow
+POST {{baseUrl}}/lab-results
+Content-Type: application/json
+
+{
+  "patientId": "{{patientId}}",
+  "testCode": "GLU",
+  "value": 98,
+  "unit": "mg/dL",
+  "referenceLow": 143,
+  "referenceHigh": 74,
+  "collectedAt": "2026-10-08T09:00:00.000Z"
+}
+
+### 9. Typo in the query parameter → 400, not a silently unfiltered list
+GET {{baseUrl}}/patients/{{patientId}}/results?abnormal=ture
+
+### 10. Unknown patient → 404
+GET {{baseUrl}}/patients/00000000-0000-4000-8000-000000000000/results
